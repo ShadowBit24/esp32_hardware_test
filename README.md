@@ -11,63 +11,66 @@ A diagnostic harness and low-level root-cause analysis (RCA) suite designed to i
 
 ## 📌 Project Overview
 
-This repository documents the diagnostic methodology, register analysis, and flashing overrides required to isolate low-level ESP32 boot failures. It includes a minimal hardware verification sketch, serial telemetry capture, and a detailed post-mortem report.
+This repository documents the diagnostic methodology, register analysis, and flashing overrides required to investigate low-level ESP32 boot failures on budget clone hardware. It includes a minimal hardware verification sketch, serial telemetry capture, and a detailed post-mortem report outlining an unresolvable flash IC defect.
 
 ### System Architecture & Diagnostic Flow
+[Power On / Reset] -> [ESP32 ROM Bootloader] -> [Read SPI Flash Header]
+  -> If Header Valid: [Load Application Image]
+  -> If Header Invalid (0x6aebae05): [Trigger Fatal Bootloop] -> [esptool.py Diagnostics & eFuse Check] -> [Override Flash Mode to DOUT @ 40MHz / Lower Clocks] -> [Attempt Flash Erase & Header Rewrite] -> [Verdict: Unresolved Hardware/Flash Defect]
 
-```mermaid
-flowchart TD
-    A[Power On / Reset] --> B[ESP32 ROM Bootloader]
-    B --> C{Read SPI Flash Header}
-    C -->|Header Valid| D[Load Application Image]
-    C -->|Header Invalid: 0x6aebae05| E[Trigger Fatal Bootloop]
-    E --> F[esptool.py Diagnostics & eFuse Check]
-    F --> G[Override Flash Mode to DOUT @ 40MHz]
-    G --> H[Erase Flash & Write Valid Header]
-    H --> D
-```
+---
 
-📁 Repository Structure
-    esp32_hardware_test/
+## 📁 Repository Structure
+
+esp32_hardware_test/
 ├── assets/                  # Diagrams, telemetry output, and screenshots
 ├── src/
 │   └── main.cpp             # Minimal bare-metal UART telemetry sketch
-├── platformio.ini           # PlatformIO configuration (DOUT bus topology @ 40MHz)
+├── platformio.ini           # PlatformIO configuration (DOUT bus topology)
 ├── POST_MORTEM.md           # Root-cause analysis & hardware flash degradation report
 └── README.md                # Project documentation
 
-📖 Key Documentation
-🔍 Read the Full Technical Post-Mortem (POST_MORTEM.md) — Comprehensive breakdown of the invalid header: 0x6aebae05 failure, isolating BoyaMicro (0x68) SPI flash IC signal timing degradation via esptool.py and low-level eFuse flags.
+---
 
-🛠 Tech Stack & Diagnostic Tools
-Target Hardware: ESP32-D0WD-V3 (Revision 3.1) with BoyaMicro BY25Q32BS 4MB Flash
+## 📖 Key Documentation
 
-Core Toolchain: PlatformIO CLI, esptool.py, espefuse.py, PowerShell
+* 🔍 **[Read the Full Technical Post-Mortem (`POST_MORTEM.md`)](./POST_MORTEM.md)** — Comprehensive breakdown of the `invalid header: 0x6aebae05` failure, isolating BoyaMicro (`0x68`) SPI flash IC signal timing degradation and documenting the batch hardware defect.
 
-Protocols & Interfaces: SPI (QIO / DIO / DOUT modes), UART Serial Telemetry, eFuse LDO Configuration
+---
 
-🚀 Quick Start & Reproduction
-Prerequisites
-PlatformIO CLI installed.
+## 🛠 Tech Stack & Diagnostic Tools
 
-USB-to-UART drivers (CP210x or CH340) configured for your ESP32 board.
+* **Target Hardware:** ESP32-D0WD-V3 (Revision 3.1) with BoyaMicro BY25Q32BS 4MB Flash
+* **Core Toolchain:** PlatformIO CLI, `esptool.py`, `espefuse.py`, PowerShell
+* **Protocols & Interfaces:** SPI (QIO / DIO / DOUT modes), UART Serial Telemetry, eFuse LDO Configuration
 
-Flashing & Monitoring Sequence
+---
 
-Clone the repository:
-git clone [https://github.com/ShadowBit24/esp32_hardware_test.git](https://github.com/ShadowBit24/esp32_hardware_test.git)
-cd esp32_hardware_test
+## 🚀 Quick Start & Reproduction
 
-Wipe corrupted flash headers via esptool:
-platformio pkg exec -p tool-esptoolpy -- esptool.py --port COMx erase_flash --force
+### Prerequisites
 
-(Replace COMx with your active serial port, e.g., COM3 or /dev/ttyUSB0)
+* PlatformIO CLI installed.
+* USB-to-UART drivers (CP210x or CH340) configured for your ESP32 board.
 
-Build and upload firmware with forced DOUT bus configuration:
-platformio run --target upload
+### Flashing & Monitoring Sequence
 
-Monitor live serial telemetry output (115200 Baud):
-platformio device monitor --baud 115200
+1. Clone the repository:
+   `git clone https://github.com/ShadowBit24/esp32_hardware_test.git`
+   `cd esp32_hardware_test`
 
-📄 License
+2. Wipe corrupted flash headers via esptool:
+   `platformio pkg exec -p tool-esptoolpy -- esptool.py --port COMx erase_flash --force`
+   (Replace COMx with your active serial port, e.g., COM3 or /dev/ttyUSB0)
+
+3. Build and upload firmware with forced DOUT bus configuration:
+   `platformio run --target upload`
+
+4. Monitor live serial telemetry output (115200 Baud):
+   `platformio device monitor --baud 115200`
+
+---
+
+## 📄 License
+
 This project is open-source and available under the MIT License.
